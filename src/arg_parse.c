@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include "../include/log_handler.h"
-#include "../include/arg_parse.h"
+#include <log_handler.h>
+#include <arg_parse.h>
 
 void parse_arguments(struct argument_description *opts, struct argument *args,
                      int arg_cnt, char **arg_vec)

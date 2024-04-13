@@ -14,7 +14,8 @@ enum argument_cases {ARG_FILE_PRO, ARG_FILE_QTE, LOG_FILE, LOG_LEVEL,
     action. arg_name is the first word of the argument typed on the CLI.
     arg_mems denotes how many words the argument consists of.
 */
-struct argument_description {
+struct argument_description
+{
     enum argument_cases arg_value;
     char arg_name[ARG_MAX_NAME_LEN];
     int arg_mems;
@@ -23,7 +24,8 @@ struct argument_description {
 /*
     This struct holds values, that are the result of parsing CLI arguments.
 */
-struct argument {
+struct argument
+{
     enum log_levels log_lvl;
     char f_log[FILE_NAME_MAX_LEN];
     char f_pro[FILE_NAME_MAX_LEN];

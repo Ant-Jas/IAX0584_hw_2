@@ -1,4 +1,4 @@
-#include "../include/log_handler.h"
+#include <log_handler.h>
 
 enum log_levels global_log_level = INFO;
 char global_log_file_name[MAX_LOG_FILE_NAME_LEN] = "log.txt";

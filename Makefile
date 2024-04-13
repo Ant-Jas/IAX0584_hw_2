@@ -5,12 +5,13 @@ OBJ_DIR := obj
 SRCS := 		\
 	main.c		\
 	log_handler.c	\
-	arg_parse.c
+	arg_parse.c	\
+	csv_helper.c
 SRCS := $(SRCS:%=$(SRC_DIR)/%)
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 CC := gcc
-CFLAGS := -Wall -Wextra -Wconversion -g
+CFLAGS := -Wall -Wextra -Wconversion -g -I include/
 
 RM := rm -f
 MAKEFLAGS += --no-print-directory
