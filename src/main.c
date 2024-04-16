@@ -2,6 +2,8 @@
 #include <log_handler.h>
 #include <arg_parse.h>
 #include <csv_helper.h>
+#include <data_printing.h>
+#include <limits.h>
 #include <main.h>
 
 int main(int argc, char **argv)
@@ -77,12 +79,25 @@ int main(int argc, char **argv)
             
             case MENU_OPT_DISP_DATA:
                 display_quotes_by_product(products_wrapper, quotes_wrapper);
+                write_log(INFO, "Displayed all product and quote info to user.");
                 break;
             
             case MENU_OPT_EDIT_RAM:
+                if (edit_product_ram(products_wrapper) != EXIT_SUCCESS)
+                {
+                    free_product_info(&products_wrapper);
+                    free_quote_info(&quotes_wrapper);
+                    return EXIT_FAILURE;
+                }
                 break;
             
             case MENU_OPT_EDIT_RTLR:
+                if (edit_quote_retailer(quotes_wrapper) != EXIT_SUCCESS)
+                {
+                    free_product_info(&products_wrapper);
+                    free_quote_info(&quotes_wrapper);
+                    return EXIT_FAILURE;
+                }
                 break;
             
             case MENU_OPT_SRCH_PRO:
@@ -551,7 +566,7 @@ int get_int(void)
     while (1)
     {
         printf("> ");
-        scanf("%s", buf);
+        fgets(buf, USER_INT_PROMPT_LEN, stdin);
         if (sscanf(buf, "%d", &val) == 1)
         {
             return val;
@@ -563,18 +578,6 @@ int get_int(void)
             write_log(WARNING, buf);
         }
     }
-}
-
-
-void print_menu(void)
-{
-    putchar('\n');
-    printf("%d - Print all data\n", MENU_OPT_DISP_DATA);
-    printf("%d - Edit product RAM\n", MENU_OPT_EDIT_RAM);
-    printf("%d - Edit quote retailer\n", MENU_OPT_EDIT_RTLR);
-    printf("%d - Search for product\n", MENU_OPT_SRCH_PRO);
-    printf("%d - EXIT\n", MENU_OPT_EXIT);
-    putchar('\n');
 }
 
 
@@ -593,6 +596,13 @@ void display_quotes_by_product(struct product_data_wrapper pdw,
                 if (nr == 0)
                 {
                     printf("\nQuotes:\n");
+                    /*
+                        This column is not part of quote data printing.
+                        Therefore, to have the printing align when using both
+                        functions elsewhere, it is also not included in table
+                        head printing.
+                    */
+                    printf("\t%3s ", "Nr.");
                     print_quote_table_head();
                 }
                 nr++;
@@ -600,11 +610,13 @@ void display_quotes_by_product(struct product_data_wrapper pdw,
                 print_product_quote(*(qdw.data + j));
             }
         }
+        
         if (nr <= 0)
         {
             printf("\nNo quotes for %s available.\n", (pdw.data + i)->p_name);
         }
         putchar('\n');
+        
         if (i != (pdw.lines - 1))
         {
             print_separator_line();
@@ -613,54 +625,156 @@ void display_quotes_by_product(struct product_data_wrapper pdw,
 }
 
 
-void print_product_specs(struct product_info pi)
+int edit_product_ram(struct product_data_wrapper pdw)
 {
-    printf("\nProduct: %s\n", pi.p_name);
-    printf("\t%-13s %d MB\n", "RAM:", pi.ram);
-    printf("\t%-13s %.1f \"\n", "Screen size:", pi.screen_size);
-    printf("\t%-13s %s\n", "OS:", pi.p_os);
-    printf("\t%-13s %s\n", "Product code:", pi.p_code);
+    printf("Enter phones product code to modify the amount of RAM.\n> ");
+    
+    char *search_str = get_dynamic_input_string(stdin);
+    if (search_str == NULL)
+    {
+        return EXIT_FAILURE;
+    }
+    
+    char msg[STR_MAX];
+    
+    for (int i = 0; i < pdw.lines; i++)
+    {
+        if (strcmp(search_str, (pdw.data + i)->p_code) == 0)
+        {
+            printf("Enter new RAM amount.\n");
+            int new_ram = get_int_in_range(0, INT_MAX);
+            snprintf(msg, STR_MAX, "Updating products %s RAM: %d -> %d",
+                     (pdw.data + i)->p_name, (pdw.data + i)->ram, new_ram);
+            (pdw.data + i)->ram = new_ram;
+            write_log(INFO, msg);
+            printf("%s\n", msg);
+            break;
+        }
+        if (i == (pdw.lines - 1))
+        {
+            snprintf(msg, STR_MAX, "Search for product with product code: %s, "
+                     "returned no results.", search_str);
+            write_log(INFO, msg);
+            printf("%s Search is case sensitive!\n", msg);
+        }
+    }
+    free(search_str);
+    return EXIT_SUCCESS;
 }
 
 
-void print_product_quote(struct quote_info qi)
+int edit_quote_retailer(struct quote_data_wrapper qdw)
 {
-    printf("| %-16s ", qi.p_retailer);
-    printf("| %8.2f EUR ", CNTS_TO_EUR((float)qi.price));
-    if (qi.stock > 0)
+    printf("Enter quote ID to change the retailers name.\n> ");
+    
+    char *search_str = get_dynamic_input_string(stdin);
+    if (search_str == NULL)
     {
-        printf("| %3d %-8s ", qi.stock, "In Stock");
+        return EXIT_FAILURE;
     }
-    else
+    
+    char msg[STR_MAX];
+    
+    for (int i = 0; i < qdw.lines; i++)
     {
-        printf("| %3s %-8s ", "", "Order");
+        if (strcmp(search_str, (qdw.data + i)->p_id) == 0)
+        {
+            printf("Enter new retailer name.\n> ");
+            char *new_retailer = get_dynamic_input_string(stdin);
+            if (new_retailer == NULL)
+            {
+                free(search_str);
+                return EXIT_FAILURE;
+            }
+            
+            snprintf(msg, STR_MAX, "Updating quote's %s retailer: %s -> %s",
+                     (qdw.data + i)->p_id, (qdw.data + i)->p_retailer,
+                     new_retailer);
+            free((qdw.data + i)->p_retailer);
+            (qdw.data + i)->p_retailer = new_retailer;
+            write_log(INFO, msg);
+            printf("%s\n", msg);
+            break;
+        }
+        if (i == (qdw.lines - 1))
+        {
+            snprintf(msg, STR_MAX, "Search for quote with id: %s, "
+                     "returned no results.", search_str);
+            write_log(INFO, msg);
+            printf("%s Search is case sensitive!\n", msg);
+        }
     }
-    printf("| %s", qi.p_id);
-    putchar('\n');
+    free(search_str);
+    return EXIT_SUCCESS;
 }
 
 
-void print_quote_table_head(void)
+char *get_dynamic_input_string(FILE *stream)
 {
-    putchar('\t');
-    printf("%3s ", "Nr.");
-    printf("| %16s ", "Retailer");
-    printf("| %12s ", "Price");
-    printf("| %12s ", "Stock status");
-    printf("| %s", "Quote ID");
-    putchar('\n');
-}
-
-
-void print_separator_line(void)
-{
-    for (int i = 0; i < SEP_LINE_LEN; i++)
+    char *str = NULL;
+    char *temp = NULL;
+    int chars_read = 0;
+    int cur_str_len = 0;
+    
+    // INPUT STREAM MUST BE FLUSHED BEFOREHAND !!!
+    while (1)
     {
-        putchar('-');
+        // Allocate more memory, if string is full
+        if (cur_str_len <= chars_read)
+        {
+            cur_str_len += DYN_INPUT_STR_LEN_MIN;
+            temp = realloc(str, (size_t)cur_str_len);
+            
+            if (temp == NULL)
+            {
+                char *err = "Failed to allocate memory for dynamic string "
+                            "while reading input.";
+                free(str);
+                write_log(ERROR, err);
+                fprintf(stderr, "%s\n", err);
+                return NULL;
+            }
+            str = temp;
+        }
+        
+        *(str + chars_read) = (char)fgetc(stream);
+        if (feof(stream))
+        {
+            free(str);
+            char *err = "Unexpected EOF occured while reading input into "
+                        "dynamic string.";
+            write_log(ERROR, err);
+            fprintf(stderr, "%s\n", err);
+            return NULL;
+        }
+        if (*(str + chars_read) == '\n')
+        {
+            *(str + chars_read) = '\0';
+            break;
+        }
+        chars_read++;
     }
-    putchar('\n');
+    
+    // Free unused allocated memory
+    temp = dynamic_string(str);
+    if (temp == NULL)
+    {
+        char *err = "Failed to reallocate input string to shorten it.";
+        write_log(ERROR, err);
+        fprintf(stderr, "%s\n", err);
+    }
+    free(str);
+    str = temp;
+    
+    return str;
 }
 
 // Non fatal errors overwrite each other
 // Add dynamic read line buffer (lib global pointer, allocate when called first,
 // extend when needed, free if reading return NULL or other error - return NULL)
+
+// Multiple products share product code
+// Small rant about scanf
+// Sorting thoughts
+// Quote retailer - change all quotes?
+// EOF cases

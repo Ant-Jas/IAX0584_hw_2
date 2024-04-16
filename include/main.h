@@ -5,12 +5,11 @@
 
 #define MIN_ARGS_TO_PARSE 1
 
+#define DYN_INPUT_STR_LEN_MIN 32
 #define STR_MAX 256
 #define USER_INT_PROMPT_LEN 128
 
 #define MIN_ALLOC_LINE_CNT 8
-
-#define SEP_LINE_LEN 80
 
 // CSV and CSV reading macros
 // Product file fields. Index of first field is 1
@@ -260,29 +259,75 @@ int get_int(void);
 
 
 /*
-Description:    Prints all the supported options of the program into standard
-                output stream with corresponding menu option values.
+Description:    For every product in product data array, searches through all of
+                quote data array for matching product codes. If codes match
+                calls a function that prints the quotes info. In case of first
+                match calls function to print a header for quotes table. Also
+                adds and prints an entry for all quotes. If no quotes are
+                available prints no table and an appropriate message.
+                Before quotes also prints the products info and separates
+                different products with a line (hopefully easier to follow).
                 
-Parameters:     -
+Parameters:     pdw - Wrapper containing a pointer to product data array and its
+                      length.
+                qdw - Wrapper containing a pointer to quote data array and its
+                      length.
                 
 Return:         -
 */
-void print_menu(void);
-
-
 void display_quotes_by_product(struct product_data_wrapper pdw,
                                struct quote_data_wrapper qdw);
 
 
-void print_product_specs(struct product_info pi);
+/*
+Description:    Prompts the user for a product code. Product code is used to
+                search for the product. If matching product is found, user is
+                prompted to enter a new RAM amount (value must be [0; INT_MAX]).
+                Old RAM amount is overwritten. Function also logs/prints
+                appropriate messages/errors.
+                
+Parameters:     pdw - Wrapper containing a pointer to product data array and its
+                      length.
+                
+Return:         EXIT_SUCCESS if RAM amount was successfully changed.
+                EXIT_FAILURE otherwise.
+*/
+int edit_product_ram(struct product_data_wrapper pdw);
 
 
-void print_product_quote(struct quote_info qi);
+/*
+Description:    Prompts the user for a quote ID. Quote ID is used to search for
+                the quote. If matching quote is found, user is prompted to enter
+                the new name for the retailer. The new name is also a dynamic
+                char array. The old dynamically allocated string for the
+                retailer is freed and then replaced by the new one. Function
+                also logs/prints appropriate messages/errors.
+                
+Parameters:     qdw - Wrapper containing a pointer to quote data array and its
+                      length.
+                
+Return:         EXIT_SUCCESS if retailer name was successfully changed.
+                EXIT_FAILURE otherwise.
+*/
+int edit_quote_retailer(struct quote_data_wrapper qdw);
 
 
-void print_quote_table_head(void);
-
-
-void print_separator_line(void);
+/*
+Description:    Reads provided input stream char-by-char until a newline symbol
+                '\n' is encountered. Read chars are stored into a dynamically
+                allocated string. The string is lengthened after every multiple
+                of DYN_INPUT_STR_LEN_MIN chars read. Input stream must be
+                flushed beforehand! If EOF flag is raised for the stream being
+                read or memory allocation fails the string is freed. Excess
+                allocated memory is freed, so returned string uses the exact
+                amount of memory needed. Function also logs/prints appropriate
+                messages/errors.
+                
+Parameters:     stream - Pointer to input stream being read.
+                
+Return:         On success a pointer to a dynamically allocated string.
+                On failure a NULL pointer.
+*/
+char *get_dynamic_input_string(FILE *stream);
 
 #endif

@@ -6,7 +6,8 @@ SRCS := 		\
 	main.c		\
 	log_handler.c	\
 	arg_parse.c	\
-	csv_helper.c
+	csv_helper.c	\
+	data_printing.c
 SRCS := $(SRCS:%=$(SRC_DIR)/%)
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
