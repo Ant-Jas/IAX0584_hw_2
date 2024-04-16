@@ -59,9 +59,43 @@ int main(int argc, char **argv)
     
     if (read_data_quotes(arguments.f_qte, &quotes_wrapper) == EXIT_FAILURE)
     {
+        free_product_info(&products_wrapper);
         free_quote_info(&quotes_wrapper);
         return EXIT_FAILURE;
     }
+    
+    char msg[STR_MAX];
+    int menu_action;
+    do
+    {
+        print_menu();
+        menu_action = get_int_in_range(MENU_OPT_EXIT, MENU_OPT_CNT - 1);
+        switch (menu_action)
+        {
+            case MENU_OPT_EXIT:
+                break;
+            
+            case MENU_OPT_DISP_DATA:
+                display_quotes_by_product(products_wrapper, quotes_wrapper);
+                break;
+            
+            case MENU_OPT_EDIT_RAM:
+                break;
+            
+            case MENU_OPT_EDIT_RTLR:
+                break;
+            
+            case MENU_OPT_SRCH_PRO:
+                break;
+            default:
+                snprintf(msg, STR_MAX, "An unknown menu option with value: %d "
+                         "received.", menu_action);
+                write_log(WARNING, msg);
+                fprintf(stderr, "%s\n", msg);
+                break;
+        }
+    }
+    while (menu_action != MENU_OPT_EXIT);
     
     free_product_info(&products_wrapper);
     free_quote_info(&quotes_wrapper);
@@ -79,8 +113,9 @@ FILE *open_file(char *f_name, char *mode)
     if (fp == NULL)
     {
         snprintf(msg, MAX_ERR_MSG_LEN, "Unable to open file \"%s\".", f_name);
+        fprintf(stderr, "%s\n", msg);
         write_log(ERROR, msg);
-        exit_with_error(msg);
+        return NULL;
     }
     snprintf(msg, MAX_ERR_MSG_LEN, "Opened file \"%s\".", f_name);
     write_log(INFO, msg);
@@ -93,6 +128,11 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
     char msg[MAX_ERR_MSG_LEN];
     char line_buffer[STR_MAX];
     FILE *p_file = open_file(f_name, "r");
+    if (p_file == NULL)
+    {
+        pdw->lines = 0;
+        return EXIT_FAILURE;
+    }
     
     // Dynamic allocation variables
     struct product_info *p_arr = NULL;
@@ -110,6 +150,7 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
             if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
             {
                 pdw->data = p_arr;
+                pdw->lines = count;
                 return EXIT_FAILURE;
             }
         }
@@ -126,6 +167,7 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
                 write_log(ERROR, msg);
                 fprintf(stderr, "%s\n", msg);
                 pdw->data = p_arr;
+                pdw->lines = count;
                 return EXIT_FAILURE;
             }
             p_arr = p_temp;
@@ -147,6 +189,7 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
         write_log(ERROR, msg);
         fprintf(stderr, "%s\n", msg);
         pdw->data = p_arr;
+        pdw->lines = count;
         return EXIT_FAILURE;
     }
     
@@ -239,6 +282,11 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
     char msg[MAX_ERR_MSG_LEN];
     char line_buffer[STR_MAX];
     FILE *p_file = open_file(f_name, "r");
+    if (p_file == NULL)
+    {
+        qdw->lines = 0;
+        return EXIT_FAILURE;
+    }
     
     // Dynamic allocation variables
     struct quote_info *p_arr = NULL;
@@ -256,6 +304,7 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
             if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
             {
                 qdw->data = p_arr;
+                qdw->lines = count;
                 return EXIT_FAILURE;
             }
         }
@@ -272,6 +321,7 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
                 write_log(ERROR, msg);
                 fprintf(stderr, "%s\n", msg);
                 qdw->data = p_arr;
+                qdw->lines = count;
                 return EXIT_FAILURE;
             }
             p_arr = p_temp;
@@ -294,6 +344,7 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
         write_log(ERROR, msg);
         fprintf(stderr, "%s\n", msg);
         qdw->data = p_arr;
+        qdw->lines = count;
         return EXIT_FAILURE;
     }
     
@@ -477,4 +528,139 @@ void free_quote_info(struct quote_data_wrapper *qdw)
     qdw->data = NULL;
 }
 
+
+int get_int_in_range(int min, int max)
+{
+    int val;
+    while (1)
+    {
+        val = get_int();
+        if (val >= min && val <= max)
+        {
+                return val;
+        }
+        fprintf(stderr, "Value must be in range [%d - %d]\n", min, max);
+    }
+}
+
+
+int get_int(void)
+{
+    int val;
+    char buf[USER_INT_PROMPT_LEN];
+    while (1)
+    {
+        printf("> ");
+        scanf("%s", buf);
+        if (sscanf(buf, "%d", &val) == 1)
+        {
+            return val;
+        }
+        else
+        {
+            fprintf(stderr, "\"%s\" is not a number\n", buf);
+            strcat(buf, " - non integer value entered by user.");
+            write_log(WARNING, buf);
+        }
+    }
+}
+
+
+void print_menu(void)
+{
+    putchar('\n');
+    printf("%d - Print all data\n", MENU_OPT_DISP_DATA);
+    printf("%d - Edit product RAM\n", MENU_OPT_EDIT_RAM);
+    printf("%d - Edit quote retailer\n", MENU_OPT_EDIT_RTLR);
+    printf("%d - Search for product\n", MENU_OPT_SRCH_PRO);
+    printf("%d - EXIT\n", MENU_OPT_EXIT);
+    putchar('\n');
+}
+
+
+void display_quotes_by_product(struct product_data_wrapper pdw,
+                               struct quote_data_wrapper qdw)
+{
+    for (int i = 0; i < pdw.lines; i++)
+    {
+        int nr = 0;
+        print_product_specs(*(pdw.data + i));
+        
+        for (int j = 0; j < qdw.lines; j++)
+        {
+            if (strcmp((*(pdw.data + i)).p_code, (*(qdw.data + j)).p_code) == 0)
+            {
+                if (nr == 0)
+                {
+                    printf("\nQuotes:\n");
+                    print_quote_table_head();
+                }
+                nr++;
+                printf("\t%3d ", nr);
+                print_product_quote(*(qdw.data + j));
+            }
+        }
+        if (nr <= 0)
+        {
+            printf("\nNo quotes for %s available.\n", (pdw.data + i)->p_name);
+        }
+        putchar('\n');
+        if (i != (pdw.lines - 1))
+        {
+            print_separator_line();
+        }
+    }
+}
+
+
+void print_product_specs(struct product_info pi)
+{
+    printf("\nProduct: %s\n", pi.p_name);
+    printf("\t%-13s %d MB\n", "RAM:", pi.ram);
+    printf("\t%-13s %.1f \"\n", "Screen size:", pi.screen_size);
+    printf("\t%-13s %s\n", "OS:", pi.p_os);
+    printf("\t%-13s %s\n", "Product code:", pi.p_code);
+}
+
+
+void print_product_quote(struct quote_info qi)
+{
+    printf("| %-16s ", qi.p_retailer);
+    printf("| %8.2f EUR ", CNTS_TO_EUR((float)qi.price));
+    if (qi.stock > 0)
+    {
+        printf("| %3d %-8s ", qi.stock, "In Stock");
+    }
+    else
+    {
+        printf("| %3s %-8s ", "", "Order");
+    }
+    printf("| %s", qi.p_id);
+    putchar('\n');
+}
+
+
+void print_quote_table_head(void)
+{
+    putchar('\t');
+    printf("%3s ", "Nr.");
+    printf("| %16s ", "Retailer");
+    printf("| %12s ", "Price");
+    printf("| %12s ", "Stock status");
+    printf("| %s", "Quote ID");
+    putchar('\n');
+}
+
+
+void print_separator_line(void)
+{
+    for (int i = 0; i < SEP_LINE_LEN; i++)
+    {
+        putchar('-');
+    }
+    putchar('\n');
+}
+
 // Non fatal errors overwrite each other
+// Add dynamic read line buffer (lib global pointer, allocate when called first,
+// extend when needed, free if reading return NULL or other error - return NULL)
