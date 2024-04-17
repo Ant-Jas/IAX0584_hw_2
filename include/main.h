@@ -11,6 +11,12 @@
 
 #define MIN_ALLOC_LINE_CNT 8
 
+// Product search return values
+#define SRCH_RES_NEG 0
+#define SRCH_RES_POS 1
+#define SRCH_RES_NO_STOCK 2
+#define SRCH_RES_INPUT_ERR -1
+
 // CSV and CSV reading macros
 // Product file fields. Index of first field is 1
 #define CSV_PRO_FIELD_CODE 1
@@ -329,5 +335,9 @@ Return:         On success a pointer to a dynamically allocated string.
                 On failure a NULL pointer.
 */
 char *get_dynamic_input_string(FILE *stream);
+
+
+int search_best_price(struct product_data_wrapper pdw,
+                       struct quote_data_wrapper qdw);
 
 #endif

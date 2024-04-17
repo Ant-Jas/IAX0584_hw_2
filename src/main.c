@@ -72,6 +72,7 @@ int main(int argc, char **argv)
     {
         print_menu();
         menu_action = get_int_in_range(MENU_OPT_EXIT, MENU_OPT_CNT - 1);
+        putchar('\n');
         switch (menu_action)
         {
             case MENU_OPT_EXIT:
@@ -79,7 +80,6 @@ int main(int argc, char **argv)
             
             case MENU_OPT_DISP_DATA:
                 display_quotes_by_product(products_wrapper, quotes_wrapper);
-                write_log(INFO, "Displayed all product and quote info to user.");
                 break;
             
             case MENU_OPT_EDIT_RAM:
@@ -101,7 +101,14 @@ int main(int argc, char **argv)
                 break;
             
             case MENU_OPT_SRCH_PRO:
+                if (search_best_price(products_wrapper, quotes_wrapper) == SRCH_RES_INPUT_ERR)
+                {
+                    free_product_info(&products_wrapper);
+                    free_quote_info(&quotes_wrapper);
+                    return EXIT_FAILURE;
+                }
                 break;
+                
             default:
                 snprintf(msg, STR_MAX, "An unknown menu option with value: %d "
                          "received.", menu_action);
@@ -613,7 +620,7 @@ void display_quotes_by_product(struct product_data_wrapper pdw,
         
         if (nr <= 0)
         {
-            printf("\nNo quotes for %s available.\n", (pdw.data + i)->p_name);
+            printf("\nNo quotes for %s available.\n\n", (pdw.data + i)->p_name);
         }
         putchar('\n');
         
@@ -622,6 +629,7 @@ void display_quotes_by_product(struct product_data_wrapper pdw,
             print_separator_line();
         }
     }
+    write_log(INFO, "Displayed all product and quote info to user.");
 }
 
 
@@ -655,7 +663,7 @@ int edit_product_ram(struct product_data_wrapper pdw)
             snprintf(msg, STR_MAX, "Search for product with product code: %s, "
                      "returned no results.", search_str);
             write_log(INFO, msg);
-            printf("%s Search is case sensitive!\n", msg);
+            printf("%s Search is case sensitive!\n\n", msg);
         }
     }
     free(search_str);
@@ -693,7 +701,7 @@ int edit_quote_retailer(struct quote_data_wrapper qdw)
             free((qdw.data + i)->p_retailer);
             (qdw.data + i)->p_retailer = new_retailer;
             write_log(INFO, msg);
-            printf("%s\n", msg);
+            printf("%s\n\n", msg);
             break;
         }
         if (i == (qdw.lines - 1))
@@ -701,7 +709,7 @@ int edit_quote_retailer(struct quote_data_wrapper qdw)
             snprintf(msg, STR_MAX, "Search for quote with id: %s, "
                      "returned no results.", search_str);
             write_log(INFO, msg);
-            printf("%s Search is case sensitive!\n", msg);
+            printf("%s Search is case sensitive!\n\n", msg);
         }
     }
     free(search_str);
@@ -769,12 +777,100 @@ char *get_dynamic_input_string(FILE *stream)
     return str;
 }
 
+
+int search_best_price(struct product_data_wrapper pdw,
+                       struct quote_data_wrapper qdw)
+{
+    printf("Enter product name to search for.\n> ");
+    
+    char *search_str = get_dynamic_input_string(stdin);
+    if (search_str == NULL)
+    {
+        return SRCH_RES_INPUT_ERR;
+    }
+    
+    char msg[STR_MAX];
+    
+    // Find if product exists
+    struct product_info *search_res = NULL;
+    for (int i = 0; i < pdw.lines; i++)
+    {
+        if (strcmp(search_str, (pdw.data + i)->p_name) == 0)
+        {
+            search_res = (pdw.data + i);
+            break;
+        }
+    }
+    if (!search_res)
+    {
+        snprintf(msg, STR_MAX, "Search for product with name \"%s\", "
+                 "returned no results.", search_str);
+        write_log(INFO, msg);
+        printf("%s Search is case sensitive!\n\n", msg);
+        free(search_str);
+        return SRCH_RES_NEG;
+    }
+    
+    // Find product with matching product code
+    struct quote_info *min_price = NULL;
+    int j = 0;
+    while (j < qdw.lines)
+    {
+        if (strcmp(search_res->p_code, (qdw.data + j)->p_code) == 0)
+        {
+            if ((qdw.data + j)->stock)
+            {
+                min_price = (qdw.data + j);
+                break;
+            }
+        }
+        j++;
+    }
+    if (!min_price)
+    {
+        // No quote with stock found msg
+        snprintf(msg, STR_MAX, "No quotes for product \"%s\" with available "
+                 "stock exist.", search_str);
+        write_log(INFO, msg);
+        printf("%s\n\n", msg);
+        free(search_str);
+        return SRCH_RES_NO_STOCK;
+    }
+    j++;
+    
+    // Find if there are cheaper options
+    while (j < qdw.lines)
+    {
+        if (strcmp(search_res->p_code, (qdw.data + j)->p_code) == 0)
+        {
+            if (min_price->price > (qdw.data + j)->price && (qdw.data + j)->stock)
+            {
+                min_price = (qdw.data + j);
+            }
+        }
+        j++;
+    }
+    
+    // Print retailer with best price
+    printf("\nCheapest offer for %s:\n", search_str);
+    printf("\t%12s: %.2f\n", "Price", CNTS_TO_EUR((float)min_price->price));
+    printf("\t%12s: %s\n", "Retailer", min_price->p_retailer);
+    printf("\t%12s: %d\n", "Stock", min_price->stock);
+    putchar('\n');
+    
+    free(search_str);
+    
+    return SRCH_RES_POS;
+}
+
 // Non fatal errors overwrite each other
 // Add dynamic read line buffer (lib global pointer, allocate when called first,
 // extend when needed, free if reading return NULL or other error - return NULL)
 
+// Separate functions for searching struct arrays with strcmp?
+
 // Multiple products share product code
 // Small rant about scanf
-// Sorting thoughts
+// Sorting thoughts (if quote file by p_code -> faster price search and data print)
 // Quote retailer - change all quotes?
 // EOF cases
