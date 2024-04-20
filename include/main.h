@@ -1,7 +1,17 @@
+/*
+File:         main.h
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Header file for main code file. Data struct definitions, macros
+              etc.
+*/
+
 #ifndef _MAIN_H
 #define _MAIN_H
 
 #define DEBUG
+#define MAX_ERR_MSG_LEN 256
 
 #define MIN_ARGS_TO_PARSE 1
 
@@ -12,29 +22,19 @@
 #define MIN_ALLOC_LINE_CNT 8
 
 // Product search return values
-#define SRCH_RES_NEG 0
-#define SRCH_RES_POS 1
-#define SRCH_RES_NO_STOCK 2
+#define SRCH_RES_NEG        0
+#define SRCH_RES_POS        1
+#define SRCH_RES_NO_STOCK   2
 #define SRCH_RES_INPUT_ERR -1
 
-// CSV and CSV reading macros
-// Product file fields. Index of first field is 1
-#define CSV_PRO_FIELD_CODE 1
-#define CSV_PRO_FIELD_NAME 2
-#define CSV_PRO_FIELD_RAM 3
-#define CSV_PRO_FIELD_SCRN 4
-#define CSV_PRO_FIELD_OS 5
+// Data edit errors
+#define EDIT_OK             0
+#define EDIT_NO_MATCH       1
+#define EDIT_MALLOC         2
 
-// Quote file fields. Index of first field is 1
-#define CSV_QTE_FIELD_ID 1
-#define CSV_QTE_FIELD_CODE 2
-#define CSV_QTE_FIELD_RTLR 3
-#define CSV_QTE_FIELD_PRICE 4
-#define CSV_QTE_FIELD_STOCK 5
-
-// Read error severity
-#define READ_ERR_NOT_FATAL 0
-#define READ_ERR_FATAL 1
+// CSV writing errors
+#define CSV_WRITE_OK        0
+#define CSV_WRITE_FOPEN_ERR 1
 
 // Currency: cents to euros
 #define CNTS_TO_EUR(cnts) (cnts / 100.0f)
@@ -42,12 +42,6 @@
 // Menu options
 enum menu_options {MENU_OPT_EXIT, MENU_OPT_DISP_DATA, MENU_OPT_EDIT_RAM,
                   MENU_OPT_EDIT_RTLR, MENU_OPT_SRCH_PRO, MENU_OPT_CNT};
-
-// Read errors
-enum read_errors {READ_OK, READ_ERR_MSNG_DATA, READ_ERR_STR_MALLOC,
-                  READ_ERR_RAM_NINT, READ_ERR_SCRNS_NFLOAT, READ_ERR_PRICE_NINT,
-                  READ_ERR_PRICE_NEG, READ_ERR_STOCK_NINT, READ_ERR_STOCK_NEG};
-
 
 /*
     Struct that holds all the available information about one product, from the
@@ -99,105 +93,6 @@ struct quote_data_wrapper
     int lines;
     size_t data_struct_size;
 };
-
-/*
-Description:    A helper function for opening file with name f_name and in mode
-                mode. Mode is a string similar to the ones passed to function
-                fopen. Checks if file was opened successfully. Also handles log
-                writing and error printing for associated actions.
-                
-Parameters:     *f_name - Pointer to string containing file name
-                *mode - Pointer to string containing info about how the file
-                        should be opened
-                
-Return:         Pointer to opened file. NULL if unsuccessful.
-*/
-FILE *open_file(char *f_name, char *mode);
-
-
-/*
-Description:    First calls a function to read a line from a csv file with name
-                f_name. Then calls another function to interpret the line into
-                buffer variables. The function itself creates a dynamic array to
-                which it saves the buffered values to. If needed, the dynamic
-                array is lengthened according to 2*n principle. If reading is
-                done, excess allocated memory is freed. The function contains
-                error printing and logging.
-                
-Parameters:     *f_name - Pointer to string containing file name.
-                *pdw - Pointer to a wrapper for product info array.
-                
-Return:         EXIT_SUCCESS (0) if all data was read successfully. Otherwise
-                EXIT_FAILURE.
-*/
-int read_data_products(char *f_name, struct product_data_wrapper *pdw);
-
-
-/*
-Description:    A pointer to a struct *pi of buffer variables is passed to this
-                function together with *buf, that points to a data line read
-                from the products info data file. Using the get_field function,
-                data from *buf is interpreted into buffer variables. Necessary
-                checks are conducted.
-                
-Parameters:     *pi - Pointer to a struct of buffer variables.
-                *buf - Pointer to a string of read csv data.
-                
-Return:         READ_OK (0 - enum value) if all data was read successfully.
-                Otherwise a value corresponding to the first encountered error.
-*/
-int get_product_info(struct product_info *pi, char *buf);
-
-
-/*
-Description:    First calls a function to read a line from a csv file with name
-                f_name. Then calls another function to interpret the line into
-                buffer variables. The function itself creates a dynamic array to
-                which it saves the buffered values to. If needed, the dynamic
-                array is lengthened according to 2*n principle. If reading is
-                done, excess allocated memory is freed. The function contains
-                error printing and logging.
-                
-Parameters:     *f_name - Pointer to string containing file name.
-                *qdw - Pointer to a wrapper for product info array.
-                
-Return:         EXIT_SUCCESS (0) if all data was read successfully. Otherwise
-                EXIT_FAILURE.
-*/
-int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw);
-
-
-/*
-Description:    A pointer to a struct *qi of buffer variables is passed to this
-                function together with *buf, that points to a data line read
-                from the quotes info data file. Using the get_field function,
-                data from *buf is interpreted into buffer variables. Necessary
-                checks are conducted.
-                
-Parameters:     *qi - Pointer to a struct of buffer variables.
-                *buf - Pointer to a string of read csv data.
-                
-Return:         READ_OK (0 - enum value) if all data was read successfully.
-                Otherwise a value corresponding to the first encountered error.
-*/
-int get_quote_info(struct quote_info *qi, char *buf);
-
-
-/*
-Description:    Prints and logs an error message according to an enum value err
-                returned from a read function. If necessary specifies a file
-                name f_name and the line number line, where the error occurred,
-                for easier troubleshooting.
-                
-Parameters:     err - enum value of error message.
-                *f_name - Pointer to a string containing the file name where the
-                          error occurred.
-                line - Line number where the error occurred.
-                
-Return:         READ_OK (0 - enum value) if all data was read successfully.
-                Otherwise a value corresponding to the first encountered error.
-*/
-int print_read_error(enum read_errors err, char *f_name, int line);
 
 
 /*
@@ -295,8 +190,10 @@ Description:    Prompts the user for a product code. Product code is used to
 Parameters:     pdw - Wrapper containing a pointer to product data array and its
                       length.
                 
-Return:         EXIT_SUCCESS if RAM amount was successfully changed.
-                EXIT_FAILURE otherwise.
+Return:         EDIT_OK (0) if RAM amount was successfully changed.
+                EDIT_NO_MATCH (1) if no matching product was found
+                EDIT_MALLOC (2) if dynamic memory allocation for string(s)
+                failed.
 */
 int edit_product_ram(struct product_data_wrapper pdw);
 
@@ -312,8 +209,10 @@ Description:    Prompts the user for a quote ID. Quote ID is used to search for
 Parameters:     qdw - Wrapper containing a pointer to quote data array and its
                       length.
                 
-Return:         EXIT_SUCCESS if retailer name was successfully changed.
-                EXIT_FAILURE otherwise.
+Return:         EDIT_OK (0) if RAM amount was successfully changed.
+                EDIT_NO_MATCH (1) if no matching product was found
+                EDIT_MALLOC (2) if dynamic memory allocation for string(s)
+                failed.
 */
 int edit_quote_retailer(struct quote_data_wrapper qdw);
 
@@ -337,6 +236,22 @@ Return:         On success a pointer to a dynamically allocated string.
 char *get_dynamic_input_string(FILE *stream);
 
 
+/*
+Description:    Checks if user entered string matches any product name. If
+                product exists, checks if there are any quotes for it. If
+                quote(s) exist, prints the cheapest option.
+                
+Parameters:     pdw - Wrapper containing a pointer to product data array and its
+                      length.
+                qdw - Wrapper containing a pointer to quote data array and its
+                      length.
+                
+Return:         SRCH_RES_INPUT_ERR - If there was an error with input string
+                memory allocation.
+                SRCH_RES_NEG - If product searched for does not exist.
+                SRCH_RES_NO_STOCK - If there is no stock for product.
+                SRCH_RES_POS - If the product exists and is in stock.
+*/
 int search_best_price(struct product_data_wrapper pdw,
                        struct quote_data_wrapper qdw);
 

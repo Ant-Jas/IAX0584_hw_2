@@ -1,11 +1,21 @@
+/*
+File:         arg_parse.c
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Code for parsing command line arguments.
+*/
+
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <log_handler.h>
 #include <arg_parse.h>
 
 void parse_arguments(struct argument_description *opts, struct argument *args,
                      int arg_cnt, char **arg_vec)
 {
-    char err_msg[MAX_ERR_MSG_LEN];
+    char err_msg[ERR_MSG_LEN];
     
     for (int i = 1; i < arg_cnt; i++)
     {
@@ -19,7 +29,7 @@ void parse_arguments(struct argument_description *opts, struct argument *args,
             }
             if (j == (ARG_SUPPORTED_CNT - 1))
             {
-                snprintf(err_msg, MAX_ERR_MSG_LEN, "Unknown argument "
+                snprintf(err_msg, ERR_MSG_LEN, "Unknown argument "
                          "\"%s\" encountered.", *(arg_vec + i));
                 write_log(ERROR, err_msg);
                 exit_with_error(err_msg);
@@ -72,7 +82,7 @@ int change_argument_value(struct argument *args, enum argument_cases event,
             int temp;
             if (sscanf(*(arg_vec + cnt + 1), "%d", &temp) != 1)
             {
-                snprintf(buf, MAX_ERR_MSG_LEN, "\"%s\" is not a supported log "
+                snprintf(buf, ERR_MSG_LEN, "\"%s\" is not a supported log "
                          "level value.", *(arg_vec + cnt + 1));
                 write_log(ERROR, buf);
                 exit_with_error(buf);

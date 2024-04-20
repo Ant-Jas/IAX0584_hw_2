@@ -1,7 +1,16 @@
+/*
+File:         arg_parse.h
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Header file for arg_parse.c. Data struct definitions, macros
+              etc.
+*/
+
 #ifndef _ARG_PARSE
 #define _ARG_PARSE
 
-#define MAX_ERR_MSG_LEN 256
+#define ERR_MSG_LEN 256
 #define MSG_MAX_LEN 128
 #define FILE_NAME_MAX_LEN 256
 #define ARG_MAX_NAME_LEN 64

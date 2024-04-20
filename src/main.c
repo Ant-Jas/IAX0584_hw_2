@@ -1,14 +1,29 @@
+/*
+File:         main.c
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Main code file for homework assignment II - Price Watch. General
+              code for setting up, running and closing the program. Also
+              functions that manipulate the data.
+*/
+
+#include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <limits.h>
+#include <string.h>
 #include <log_handler.h>
 #include <arg_parse.h>
+#include <data_read_write.h>
 #include <csv_helper.h>
 #include <data_printing.h>
-#include <limits.h>
 #include <main.h>
 
 int main(int argc, char **argv)
 {
     // Default logging level: INFO & file name: "log.txt" in log lib
+    // Uncomment and change values to change defaults
     //set_logging_level(INFO);
     //set_logging_file_name("log.txt");
     write_log(INFO, "Starting program.");
@@ -29,6 +44,7 @@ int main(int argc, char **argv)
         .f_qte = "data/quotes.csv",
     };
     
+    // Parse arguments if needed
     if (argc > MIN_ARGS_TO_PARSE)
     {
         parse_arguments(options, &arguments, argc, argv);
@@ -39,6 +55,7 @@ int main(int argc, char **argv)
         write_log(INFO, "Using default arguments.");
     }
     
+    // Setup products wrapper and read products data
     struct product_data_wrapper products_wrapper =
     {
         .data = NULL,
@@ -49,9 +66,11 @@ int main(int argc, char **argv)
     if (read_data_products(arguments.f_pro, &products_wrapper) == EXIT_FAILURE)
     {
         free_product_info(&products_wrapper);
+        write_log(INFO, "Closing program after encountering an error.");
         return EXIT_FAILURE;
     }
     
+    // Setup quotes wrapper and read quotes data
     struct quote_data_wrapper quotes_wrapper =
     {
         .data = NULL,
@@ -63,11 +82,16 @@ int main(int argc, char **argv)
     {
         free_product_info(&products_wrapper);
         free_quote_info(&quotes_wrapper);
+        write_log(INFO, "Closing program after encountering an error.");
         return EXIT_FAILURE;
     }
     
+    // Menu
+    bool products_modified = false;
+    bool quotes_modified = false;
     char msg[STR_MAX];
     int menu_action;
+    int return_val;
     do
     {
         print_menu();
@@ -83,28 +107,42 @@ int main(int argc, char **argv)
                 break;
             
             case MENU_OPT_EDIT_RAM:
-                if (edit_product_ram(products_wrapper) != EXIT_SUCCESS)
+                return_val = edit_product_ram(products_wrapper);
+                if (return_val == EDIT_OK)
+                {
+                    products_modified = true;
+                }
+                else if (return_val == EDIT_MALLOC)
                 {
                     free_product_info(&products_wrapper);
                     free_quote_info(&quotes_wrapper);
+                    write_log(INFO, "Closing program after encountering an error.");
                     return EXIT_FAILURE;
                 }
                 break;
             
             case MENU_OPT_EDIT_RTLR:
-                if (edit_quote_retailer(quotes_wrapper) != EXIT_SUCCESS)
+                return_val = edit_quote_retailer(quotes_wrapper);
+                if (return_val == EDIT_OK)
+                {
+                    quotes_modified = true;
+                }
+                else if (return_val == EDIT_MALLOC)
                 {
                     free_product_info(&products_wrapper);
                     free_quote_info(&quotes_wrapper);
+                    write_log(INFO, "Closing program after encountering an error.");
                     return EXIT_FAILURE;
                 }
                 break;
             
             case MENU_OPT_SRCH_PRO:
-                if (search_best_price(products_wrapper, quotes_wrapper) == SRCH_RES_INPUT_ERR)
+                return_val = search_best_price(products_wrapper, quotes_wrapper);
+                if (return_val == SRCH_RES_INPUT_ERR)
                 {
                     free_product_info(&products_wrapper);
                     free_quote_info(&quotes_wrapper);
+                    write_log(INFO, "Closing program after encountering an error.");
                     return EXIT_FAILURE;
                 }
                 break;
@@ -119,391 +157,22 @@ int main(int argc, char **argv)
     }
     while (menu_action != MENU_OPT_EXIT);
     
+    // Write changes to file if needed
+    if (products_modified)
+    {
+        save_product_file_changes(arguments.f_pro, products_wrapper);
+    }
+    if (quotes_modified)
+    {
+        save_quote_file_changes(arguments.f_qte, quotes_wrapper);
+    }
+    
+    // Free dynamically allocated memory
     free_product_info(&products_wrapper);
     free_quote_info(&quotes_wrapper);
     
     write_log(INFO, "Closing program successfully.");
     return EXIT_SUCCESS;
-}
-
-
-FILE *open_file(char *f_name, char *mode)
-{
-    char msg[MAX_ERR_MSG_LEN];
-    FILE *fp;
-    fp = fopen(f_name, mode);
-    if (fp == NULL)
-    {
-        snprintf(msg, MAX_ERR_MSG_LEN, "Unable to open file \"%s\".", f_name);
-        fprintf(stderr, "%s\n", msg);
-        write_log(ERROR, msg);
-        return NULL;
-    }
-    snprintf(msg, MAX_ERR_MSG_LEN, "Opened file \"%s\".", f_name);
-    write_log(INFO, msg);
-    return fp;
-}
-
-
-int read_data_products(char *f_name, struct product_data_wrapper *pdw)
-{
-    char msg[MAX_ERR_MSG_LEN];
-    char line_buffer[STR_MAX];
-    FILE *p_file = open_file(f_name, "r");
-    if (p_file == NULL)
-    {
-        pdw->lines = 0;
-        return EXIT_FAILURE;
-    }
-    
-    // Dynamic allocation variables
-    struct product_info *p_arr = NULL;
-    struct product_info *p_temp = NULL;
-    struct product_info pro_buf;
-    int count = 0;
-    int alloc_limit = MIN_ALLOC_LINE_CNT;
-    
-    enum read_errors err_code;
-    while (read_line(p_file, line_buffer) != EOF)
-    {
-        err_code = get_product_info(&pro_buf, line_buffer);
-        if (err_code != READ_OK)
-        {
-            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
-            {
-                pdw->data = p_arr;
-                pdw->lines = count;
-                return EXIT_FAILURE;
-            }
-        }
-        
-        // Allocate memory if necessary
-        if (count >= alloc_limit || count == 0)
-        {
-            alloc_limit *= 2;
-            p_temp = realloc(p_arr, pdw->data_struct_size * (size_t)(alloc_limit));
-            if (p_temp == NULL)
-            {
-                snprintf(msg, MAX_ERR_MSG_LEN, "Unable to expand data array from"
-                         " length %d to %d", count, count + 1);
-                write_log(ERROR, msg);
-                fprintf(stderr, "%s\n", msg);
-                pdw->data = p_arr;
-                pdw->lines = count;
-                return EXIT_FAILURE;
-            }
-            p_arr = p_temp;
-        }
-        
-        // Copy buffer to data array
-        *(p_arr + count) = pro_buf;
-        count++;
-    }
-    fclose(p_file);
-    snprintf(msg, MAX_ERR_MSG_LEN, "Closed file \"%s\".", f_name);
-    write_log(INFO, msg);
-    
-    // Free excess allocated memory
-    p_temp = realloc(p_arr, pdw->data_struct_size * (size_t)(count));
-    if (p_temp == NULL)
-    {
-        snprintf(msg, MAX_ERR_MSG_LEN, "Unable to free excess memory");
-        write_log(ERROR, msg);
-        fprintf(stderr, "%s\n", msg);
-        pdw->data = p_arr;
-        pdw->lines = count;
-        return EXIT_FAILURE;
-    }
-    
-    // Save to wrapper
-    pdw->data = p_temp;
-    pdw->lines = count;
-    snprintf(msg, MAX_ERR_MSG_LEN, "Product data read successfully.");
-    write_log(INFO, msg);
-    return EXIT_SUCCESS;
-}
-
-
-int get_product_info(struct product_info *pi, char *buf)
-{
-    char field[STR_MAX];
-    char *p_field;
-    int error_status = READ_OK; // For non fatal errors
-    
-    // Getting product code
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_PRO_FIELD_CODE);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    pi->p_code = dynamic_string(p_field);
-    if (pi->p_code == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting product name
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_PRO_FIELD_NAME);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    pi->p_name = dynamic_string(p_field);
-    if (pi->p_name == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting product OS
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_PRO_FIELD_OS);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    pi->p_os = dynamic_string(p_field);
-    if (pi->p_os == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting product RAM
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_PRO_FIELD_RAM);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    if (sscanf(p_field, "%d", &pi->ram) != 1)
-    {
-       pi->ram = 0;
-       error_status = READ_ERR_RAM_NINT;
-    }
-    
-    // Getting product screen size
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_PRO_FIELD_SCRN);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    if (sscanf(p_field, "%f", &pi->screen_size) != 1)
-    {
-        pi->screen_size = 0.0f;
-        error_status = READ_ERR_SCRNS_NFLOAT;
-    }
-    
-    return error_status;
-}
-
-
-int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
-{
-    char msg[MAX_ERR_MSG_LEN];
-    char line_buffer[STR_MAX];
-    FILE *p_file = open_file(f_name, "r");
-    if (p_file == NULL)
-    {
-        qdw->lines = 0;
-        return EXIT_FAILURE;
-    }
-    
-    // Dynamic allocation variables
-    struct quote_info *p_arr = NULL;
-    struct quote_info *p_temp = NULL;
-    struct quote_info qte_buf;
-    int count = 0;
-    int alloc_limit = MIN_ALLOC_LINE_CNT;
-    
-    enum read_errors err_code;
-    while (read_line(p_file, line_buffer) != EOF)
-    {
-        err_code = get_quote_info(&qte_buf, line_buffer);
-        if (err_code != READ_OK)
-        {
-            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
-            {
-                qdw->data = p_arr;
-                qdw->lines = count;
-                return EXIT_FAILURE;
-            }
-        }
-        
-        // Allocate memory if necessary
-        if (count >= alloc_limit || count == 0)
-        {
-            alloc_limit *= 2;
-            p_temp = realloc(p_arr, qdw->data_struct_size * (size_t)(alloc_limit));
-            if (p_temp == NULL)
-            {
-                snprintf(msg, MAX_ERR_MSG_LEN, "Unable to expand data array from"
-                         " length %d to %d", count, count + 1);
-                write_log(ERROR, msg);
-                fprintf(stderr, "%s\n", msg);
-                qdw->data = p_arr;
-                qdw->lines = count;
-                return EXIT_FAILURE;
-            }
-            p_arr = p_temp;
-        }
-        
-        // Copy buffer to data array
-        *(p_arr + count) = qte_buf;
-        count++;
-    }
-    fclose(p_file);
-    snprintf(msg, MAX_ERR_MSG_LEN, "Closed file \"%s\".", f_name);
-    write_log(INFO, msg);
-    
-    // Free excess allocated memory
-    // Fatal ?
-    p_temp = realloc(p_arr, qdw->data_struct_size * (size_t)(count));
-    if (p_temp == NULL)
-    {
-        snprintf(msg, MAX_ERR_MSG_LEN, "Unable to free excess memory");
-        write_log(ERROR, msg);
-        fprintf(stderr, "%s\n", msg);
-        qdw->data = p_arr;
-        qdw->lines = count;
-        return EXIT_FAILURE;
-    }
-    
-    // Save to wrapper
-    qdw->data = p_temp;
-    qdw->lines = count;
-    snprintf(msg, MAX_ERR_MSG_LEN, "Quote data read successfully.");
-    write_log(INFO, msg);
-    return EXIT_SUCCESS;
-}
-
-
-int get_quote_info(struct quote_info *qi, char *buf)
-{
-    char field[STR_MAX];
-    char *p_field;
-    int error_status = READ_OK; // For non fatal errors
-    
-    // Getting quote id
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_QTE_FIELD_ID);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    qi->p_id = dynamic_string(p_field);
-    if (qi->p_id == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting product code (FK)
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_QTE_FIELD_CODE);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    qi->p_code = dynamic_string(p_field);
-    if (qi->p_code == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting quote retailer
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_QTE_FIELD_RTLR);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    qi->p_retailer = dynamic_string(p_field);
-    if (qi->p_retailer == NULL)
-    {
-        return READ_ERR_STR_MALLOC;
-    }
-    
-    // Getting quote price
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_QTE_FIELD_PRICE);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    if (sscanf(p_field, "%d", &qi->price) != 1)
-    {
-       qi->price = 0;
-       error_status = READ_ERR_PRICE_NINT;
-    }
-    else if (qi->price < 0)
-    {
-        error_status = READ_ERR_PRICE_NEG;
-    }
-    
-    // Getting quoted items stock
-    strcpy(field, buf);
-    p_field = get_field(field, CSV_QTE_FIELD_STOCK);
-    if (p_field == NULL)
-    {
-        return READ_ERR_MSNG_DATA;
-    }
-    if (sscanf(p_field, "%d", &qi->stock) != 1)
-    {
-       qi->stock = 0;
-       error_status = READ_ERR_STOCK_NINT;
-    }
-    else if (qi->stock < 0)
-    {
-        error_status = READ_ERR_STOCK_NEG;
-    }
-    
-    return error_status;
-}
-
-
-int print_read_error(enum read_errors err, char *f_name, int line)
-{
-    char err_msg[MAX_ERR_MSG_LEN];
-    switch (err)
-    {
-        case READ_ERR_MSNG_DATA:
-            snprintf(err_msg, MAX_ERR_MSG_LEN, "Line: %d from file \"%s\" is "
-                     "missing data fields.", line, f_name);
-            write_log(ERROR, err_msg);
-            fprintf(stderr, "%s\n", err_msg);
-            return READ_ERR_FATAL;
-            
-        case READ_ERR_STR_MALLOC:
-            snprintf(err_msg, MAX_ERR_MSG_LEN, "Could not allocate memory for "
-                     "string type date field at line: %d from file \"%s\".",
-                     line, f_name);
-            write_log(ERROR, err_msg);
-            fprintf(stderr, "%s\n", err_msg);
-            return READ_ERR_FATAL;
-            
-        case READ_ERR_RAM_NINT:
-            snprintf(err_msg, MAX_ERR_MSG_LEN, "Product RAM value at line: %d "
-                     "in file \"%s\" is not an integer.", line, f_name);
-            write_log(ERROR, err_msg);
-            fprintf(stderr, "%s\n", err_msg);
-            return READ_ERR_NOT_FATAL;
-            
-        case READ_ERR_SCRNS_NFLOAT:
-            snprintf(err_msg, MAX_ERR_MSG_LEN, "Product screen size at line: %d"
-                     " in file \"%s\" is not a float.", line, f_name);
-            write_log(ERROR, err_msg);
-            fprintf(stderr, "%s\n", err_msg);
-            return READ_ERR_NOT_FATAL;
-            
-        default:
-            snprintf(err_msg, MAX_ERR_MSG_LEN, "Unknown error with value %d "
-                     " called by read error at line: %d in file \"%s\".",
-                     err, line, f_name);
-            write_log(ERROR, err_msg);
-            fprintf(stderr, "%s\n", err_msg);
-            return READ_ERR_FATAL;
-    }
 }
 
 
@@ -640,7 +309,7 @@ int edit_product_ram(struct product_data_wrapper pdw)
     char *search_str = get_dynamic_input_string(stdin);
     if (search_str == NULL)
     {
-        return EXIT_FAILURE;
+        return EDIT_MALLOC;
     }
     
     char msg[STR_MAX];
@@ -649,7 +318,7 @@ int edit_product_ram(struct product_data_wrapper pdw)
     {
         if (strcmp(search_str, (pdw.data + i)->p_code) == 0)
         {
-            printf("Enter new RAM amount.\n");
+            printf("\nEnter new RAM amount.\n");
             int new_ram = get_int_in_range(0, INT_MAX);
             snprintf(msg, STR_MAX, "Updating products %s RAM: %d -> %d",
                      (pdw.data + i)->p_name, (pdw.data + i)->ram, new_ram);
@@ -664,10 +333,12 @@ int edit_product_ram(struct product_data_wrapper pdw)
                      "returned no results.", search_str);
             write_log(INFO, msg);
             printf("%s Search is case sensitive!\n\n", msg);
+            free(search_str);
+            return EDIT_NO_MATCH;
         }
     }
     free(search_str);
-    return EXIT_SUCCESS;
+    return EDIT_OK;
 }
 
 
@@ -678,7 +349,7 @@ int edit_quote_retailer(struct quote_data_wrapper qdw)
     char *search_str = get_dynamic_input_string(stdin);
     if (search_str == NULL)
     {
-        return EXIT_FAILURE;
+        return EDIT_MALLOC;
     }
     
     char msg[STR_MAX];
@@ -687,12 +358,12 @@ int edit_quote_retailer(struct quote_data_wrapper qdw)
     {
         if (strcmp(search_str, (qdw.data + i)->p_id) == 0)
         {
-            printf("Enter new retailer name.\n> ");
+            printf("\nEnter new retailer name.\n> ");
             char *new_retailer = get_dynamic_input_string(stdin);
             if (new_retailer == NULL)
             {
                 free(search_str);
-                return EXIT_FAILURE;
+                return EDIT_MALLOC;
             }
             
             snprintf(msg, STR_MAX, "Updating quote's %s retailer: %s -> %s",
@@ -710,10 +381,12 @@ int edit_quote_retailer(struct quote_data_wrapper qdw)
                      "returned no results.", search_str);
             write_log(INFO, msg);
             printf("%s Search is case sensitive!\n\n", msg);
+            free(search_str);
+            return EDIT_NO_MATCH;
         }
     }
     free(search_str);
-    return EXIT_SUCCESS;
+    return EDIT_OK;
 }
 
 
@@ -829,7 +502,7 @@ int search_best_price(struct product_data_wrapper pdw,
     if (!min_price)
     {
         // No quote with stock found msg
-        snprintf(msg, STR_MAX, "No quotes for product \"%s\" with available "
+        snprintf(msg, STR_MAX, "\nNo quotes for product \"%s\" with available "
                  "stock exist.", search_str);
         write_log(INFO, msg);
         printf("%s\n\n", msg);
@@ -862,15 +535,3 @@ int search_best_price(struct product_data_wrapper pdw,
     
     return SRCH_RES_POS;
 }
-
-// Non fatal errors overwrite each other
-// Add dynamic read line buffer (lib global pointer, allocate when called first,
-// extend when needed, free if reading return NULL or other error - return NULL)
-
-// Separate functions for searching struct arrays with strcmp?
-
-// Multiple products share product code
-// Small rant about scanf
-// Sorting thoughts (if quote file by p_code -> faster price search and data print)
-// Quote retailer - change all quotes?
-// EOF cases

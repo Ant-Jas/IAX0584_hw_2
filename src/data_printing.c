@@ -1,3 +1,14 @@
+/*
+File:         data_printing.c
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Most of the functions, that print formatted data.
+*/
+
+#include <stdio.h>
+#include <csv_helper.h>
+#include <main.h>
 #include <data_printing.h>
 
 void print_menu(void)
@@ -56,4 +67,24 @@ void print_separator_line(void)
         putchar('-');
     }
     putchar('\n');
+}
+
+
+void print_product_csv_line(FILE *fp, struct product_info pi)
+{
+    fprintf(fp, "%s%c", pi.p_code, CSV_DELIMITER);
+    fprintf(fp, "%s%c", pi.p_name, CSV_DELIMITER);
+    fprintf(fp, "%d%c", pi.ram, CSV_DELIMITER);
+    fprintf(fp, "%.1f%c", pi.screen_size, CSV_DELIMITER);
+    fprintf(fp, "%s\n", pi.p_os);
+}
+
+
+void print_quote_csv_line(FILE *fp, struct quote_info qi)
+{
+    fprintf(fp, "%s%c", qi.p_id, CSV_DELIMITER);
+    fprintf(fp, "%s%c", qi.p_code, CSV_DELIMITER);
+    fprintf(fp, "%s%c", qi.p_retailer, CSV_DELIMITER);
+    fprintf(fp, "%d%c", qi.price, CSV_DELIMITER);
+    fprintf(fp, "%d\n", qi.stock);
 }

@@ -2,12 +2,13 @@ NAME := price_watch.out
 
 SRC_DIR	:= src
 OBJ_DIR := obj
-SRCS := 		\
-	main.c		\
-	log_handler.c	\
-	arg_parse.c	\
-	csv_helper.c	\
-	data_printing.c
+SRCS := 			\
+	main.c			\
+	log_handler.c		\
+	arg_parse.c		\
+	csv_helper.c		\
+	data_printing.c		\
+	data_read_write.c
 SRCS := $(SRCS:%=$(SRC_DIR)/%)
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
@@ -35,8 +36,4 @@ clean:
 fclean: clean
 	$(RM) $(NAME)
 
-re:
-	$(MAKE) fclean
-	$(MAKE) all
-
-.PHONY: clean fclean re
+.PHONY: clean fclean

@@ -1,8 +1,14 @@
+/*
+File:         data_printing.h
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Header file for data_printing.c. Data struct definitions, macros
+              etc.
+*/
+
 #ifndef _DATA_PRINTING
 #define _DATA_PRINTING
-
-#include <stdio.h>
-#include <main.h>
 
 #define SEP_LINE_LEN 80
 
@@ -65,5 +71,29 @@ Parameters:     -
 Return:         -
 */
 void print_separator_line(void);
+
+
+/*
+Description:    Prints product info from struct pi into file pointed by *fp.
+                Data is separated by CSV_DELIMITER and in the following order:
+                Product Code, Name, RAM, Screen Size, OS.
+                
+Parameters:     pi - Struct holding all the data necessary for printing.
+                
+Return:         -
+*/
+void print_product_csv_line(FILE *fp, struct product_info pi);
+
+
+/*
+Description:    Prints quote info from struct qi into file pointed by *fp.
+                Data is separated by CSV_DELIMITER and in the following order:
+                Quote ID, Product Code, Retailer, Price, Stock.
+                
+Parameters:     qi - Struct holding all the data necessary for printing.
+                
+Return:         -
+*/
+void print_quote_csv_line(FILE *fp, struct quote_info qi);
 
 #endif

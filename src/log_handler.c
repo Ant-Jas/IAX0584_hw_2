@@ -1,3 +1,14 @@
+/*
+File:         log_handler.c
+Author:       Anton Jaska
+Created:      2024.12.00
+Modified:     2024.04.20
+Description:  Functions to help with logging.
+*/
+
+#include <stdio.h>
+#include <time.h>
+#include <string.h>
 #include <log_handler.h>
 
 enum log_levels global_log_level = INFO;
