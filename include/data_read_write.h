@@ -33,8 +33,9 @@ Description:  Header file for data_read_write.c. Data struct definitions, macros
 
 // Read errors
 enum read_errors {READ_OK, READ_ERR_MSNG_DATA, READ_ERR_STR_MALLOC,
-                  READ_ERR_RAM_NINT, READ_ERR_SCRNS_NFLOAT, READ_ERR_PRICE_NINT,
-                  READ_ERR_PRICE_NEG, READ_ERR_STOCK_NINT, READ_ERR_STOCK_NEG};
+                  READ_ERR_RAM_NINT, READ_ERR_RAM_NEG, READ_ERR_SCRNS_NFLOAT,
+                  READ_ERR_PRICE_NINT, READ_ERR_PRICE_NEG, READ_ERR_STOCK_NINT,
+                  READ_ERR_STOCK_NEG};
 
 /*
 Description:    A helper function for opening file with name f_name and in mode
