@@ -203,6 +203,11 @@ int get_product_info(struct product_info *pi, char *buf)
         pi->screen_size = 0.0f;
         error_status = READ_ERR_SCRNS_NFLOAT;
     }
+    if (pi->screen_size < 0.0f)
+    {
+        pi->screen_size = 0.0f;
+        error_status = READ_ERR_SCRNS_NEG;
+    }
     
     return error_status;
 }
@@ -395,7 +400,7 @@ int print_read_error(enum read_errors err, char *f_name, int line)
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_FATAL;
-            
+        
         case READ_ERR_STR_MALLOC:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Could not allocate memory for "
                      "string type date field at line: %d from file \"%s\".",
@@ -403,14 +408,15 @@ int print_read_error(enum read_errors err, char *f_name, int line)
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_FATAL;
-            
+        
         case READ_ERR_RAM_NINT:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Product RAM value at line: %d "
-                     "in file \"%s\" is not an integer.", line, f_name);
+                     "in file \"%s\" is not an integer. It will be set to 0",
+                     line, f_name);
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_NOT_FATAL;
-            
+        
         case READ_ERR_RAM_NEG:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Product RAM value at line: %d "
                      "in file \"%s\" is negative. It will be set to 0.", line,
@@ -418,10 +424,35 @@ int print_read_error(enum read_errors err, char *f_name, int line)
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_NOT_FATAL;
-            
+        
         case READ_ERR_SCRNS_NFLOAT:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Product screen size at line: %d"
-                     " in file \"%s\" is not a float.", line, f_name);
+                     " in file \"%s\" is not a float. It will be set to 0",
+                     line, f_name);
+            write_log(ERROR, err_msg);
+            fprintf(stderr, "%s\n", err_msg);
+            return READ_ERR_NOT_FATAL;
+        
+        case READ_ERR_SCRNS_NEG:
+            snprintf(err_msg, MAX_ERR_MSG_LEN, "Product screen size at line: %d"
+                     " in file \"%s\" is negative. It will be set to 0.", line,
+                     f_name);
+            write_log(ERROR, err_msg);
+            fprintf(stderr, "%s\n", err_msg);
+            return READ_ERR_NOT_FATAL;
+        
+        case READ_ERR_STOCK_NINT:
+            snprintf(err_msg, MAX_ERR_MSG_LEN, "Quote stock value at line: %d"
+                     " in file \"%s\" is not an integer. It will be set to 0.",
+                     line, f_name);
+            write_log(ERROR, err_msg);
+            fprintf(stderr, "%s\n", err_msg);
+            return READ_ERR_NOT_FATAL;
+        
+        case READ_ERR_STOCK_NEG:
+            snprintf(err_msg, MAX_ERR_MSG_LEN, "Quote stock value at line: %d"
+                     " in file \"%s\" is negative. It will be set to 0.",
+                     line, f_name);
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_NOT_FATAL;
