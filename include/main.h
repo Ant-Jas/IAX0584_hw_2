@@ -10,7 +10,6 @@ Description:  Header file for main code file. Data struct definitions, macros
 #ifndef _MAIN_H
 #define _MAIN_H
 
-#define DEBUG
 #define MAX_ERR_MSG_LEN 256
 
 #define MIN_ARGS_TO_PARSE 1
@@ -18,8 +17,6 @@ Description:  Header file for main code file. Data struct definitions, macros
 #define DYN_INPUT_STR_LEN_MIN 32
 #define STR_MAX 256
 #define USER_INT_PROMPT_LEN 128
-
-#define MIN_ALLOC_LINE_CNT 8
 
 // Product search return values
 #define SRCH_RES_NEG        0
@@ -31,10 +28,6 @@ Description:  Header file for main code file. Data struct definitions, macros
 #define EDIT_OK             0
 #define EDIT_NO_MATCH       1
 #define EDIT_MALLOC         2
-
-// CSV writing errors
-#define CSV_WRITE_OK        0
-#define CSV_WRITE_FOPEN_ERR 1
 
 // Currency: cents to euros
 #define CNTS_TO_EUR(cnts) (cnts / 100.0f)

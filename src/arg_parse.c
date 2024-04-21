@@ -42,10 +42,6 @@ void parse_arguments(struct argument_description *opts, struct argument *args,
 int change_argument_value(struct argument *args, enum argument_cases event,
                           char **arg_vec, int arg_vec_len, int cnt, int arg_mems)
 {
-    #ifdef DEBUG
-    printf("Arg cnt: %d\n", arg_vec_len);
-    #endif
-    
     if (arg_mems + cnt > arg_vec_len)
     {
         exit_with_error("Not enough arguments provided. Check if every file name"

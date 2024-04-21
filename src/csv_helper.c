@@ -24,17 +24,36 @@ int read_line(FILE *p_file, char **str)
     char *current = NULL;
     while (1)
     {
+        // Have same data read before simulating realloc fail
+        #ifdef FUNC_READ_LINE_TEST
+        static int lines_read = 0;
+        lines_read++;
+        #endif
+        
         // Allocate more memory, if line buffer is full
         if (buffer_len <= chars_read)
         {
             buffer_len += DYN_BUF_STEP;
             temp = realloc(p_line_buffer, (size_t)buffer_len);
             
+            // Have same data read before simulating realloc fail
+            #ifdef FUNC_READ_LINE_TEST
+            if (lines_read > 10)
+            {
+                printf("Simulating realloc fail. (Reading Line)\n");
+                if (temp != NULL)
+                {
+                    p_line_buffer = temp;
+                    temp = NULL;
+                }
+            }
+            #endif
+            
             if (temp == NULL)
             {
                 char *err = "Failed to allocate memory for dynamic string "
                             "while reading data file.";
-                free(p_line_buffer);
+                free_buffer_manually();
                 write_log(ERROR, err);
                 fprintf(stderr, "%s\n", err);
                 *str = NULL;
@@ -51,8 +70,7 @@ int read_line(FILE *p_file, char **str)
             if (feof(p_file)) // EOF, no chars read
             {
                 // Buffer reset after finishing every file
-                free(p_line_buffer);
-                p_line_buffer = NULL;
+                free_buffer_manually();
                 buffer_len = 0;
                 *str = NULL;
                 return EOF;
@@ -85,7 +103,7 @@ int read_line(FILE *p_file, char **str)
                 {
                     char *err = "Failed to allocate memory for dynamic string "
                                 "while reading data file.";
-                    free(p_line_buffer);
+                    free_buffer_manually();
                     write_log(ERROR, err);
                     fprintf(stderr, "%s\n", err);
                     *str = NULL;
@@ -108,10 +126,6 @@ int read_line(FILE *p_file, char **str)
 
 char *get_field(char *src, int field_num)
 {
-    #ifdef DEBUG
-    printf("Src str: %s\n", src);
-    #endif
-    
     int i = 0;
     int field_cnt = 1;
     

@@ -160,11 +160,17 @@ int main(int argc, char **argv)
     // Write changes to file if needed
     if (products_modified)
     {
-        save_product_file_changes(arguments.f_pro, products_wrapper);
+        if (!save_product_file_changes(arguments.f_pro, products_wrapper))
+        {
+            fprintf(stderr, "Changes made will not be saved.\n");
+        }
     }
     if (quotes_modified)
     {
-        save_quote_file_changes(arguments.f_qte, quotes_wrapper);
+        if(!save_quote_file_changes(arguments.f_qte, quotes_wrapper))
+        {
+            fprintf(stderr, "Changes made will not be saved.\n");
+        }
     }
     
     // Free dynamically allocated memory
@@ -243,6 +249,7 @@ int get_int(void)
     {
         printf("> ");
         fgets(buf, USER_INT_PROMPT_LEN, stdin);
+        *(buf + strlen(buf) - 1) = '\0';
         if (sscanf(buf, "%d", &val) == 1)
         {
             return val;
@@ -405,6 +412,12 @@ char *get_dynamic_input_string(FILE *stream)
         {
             cur_str_len += DYN_INPUT_STR_LEN_MIN;
             temp = realloc(str, (size_t)cur_str_len);
+            
+            // Simulates realloc fail
+            #ifdef FUNC_GET_DYNAMIC_INPUT_STRING_TEST
+            free(temp);
+            temp = NULL;
+            #endif
             
             if (temp == NULL)
             {

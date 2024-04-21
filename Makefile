@@ -1,4 +1,5 @@
 NAME := price_watch.out
+TEST_MACRO :=NO_MACRO
 
 SRC_DIR	:= src
 OBJ_DIR := obj
@@ -28,6 +29,16 @@ $(NAME): $(OBJS)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(DIR_DUP)
 	$(CC) $(CFLAGS) -c -o $@ $<
+	$(info CREATED $@)
+
+testing: fclean \
+	$(OBJS)
+	$(CC) $(OBJS) -o $(NAME) -D$(TEST_MACRO)
+	$(info CREATED $(NAME))
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	$(DIR_DUP)
+	$(CC) $(CFLAGS) -D$(TEST_MACRO) -c -o $@ $<
 	$(info CREATED $@)
 
 clean:

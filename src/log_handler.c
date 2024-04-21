@@ -39,7 +39,7 @@ void write_log(enum log_levels msg_lvl, char *msg)
         fprintf(stderr, "%s\n", WARNING_BAR_STR);
         fprintf(stderr, "\t\t!!! WARNING !!!\n");
         fprintf(stderr, "Unable to open logfile \"%s\". Current actions are not"
-                "logged\n", global_log_file_name);
+                " logged\n", global_log_file_name);
         fprintf(stderr, "\t\t!!! WARNING !!!\n");
         fprintf(stderr, "%s\n", WARNING_BAR_STR);
         return;

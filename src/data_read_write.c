@@ -67,18 +67,8 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
         {
             pdw->data = p_arr;
             pdw->lines = count;
+            fclose(p_file);
             return EXIT_FAILURE;
-        }
-        
-        err_code = get_product_info(&pro_buf, line_buffer);
-        if (err_code != READ_OK)
-        {
-            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
-            {
-                pdw->data = p_arr;
-                pdw->lines = count;
-                return EXIT_FAILURE;
-            }
         }
         
         // Allocate memory if necessary
@@ -86,22 +76,52 @@ int read_data_products(char *f_name, struct product_data_wrapper *pdw)
         {
             alloc_limit *= 2;
             p_temp = realloc(p_arr, pdw->data_struct_size * (size_t)(alloc_limit));
+                        
+            // Have same data read before simulating realloc fail
+            #ifdef FUNC_READ_DATA_PRODUCTS_TEST
+            if (count > MIN_ALLOC_LINE_CNT * 2)
+            {
+                printf("Simulating realloc fail. (Products reading)\n");
+                if (p_temp != NULL)
+                {
+                    p_arr = p_temp;
+                    p_temp = NULL;
+                }
+            }
+            #endif
+            
             if (p_temp == NULL)
             {
                 snprintf(msg, MAX_ERR_MSG_LEN, "Unable to expand data array from"
-                         " length %d to %d", count, count + 1);
+                         " length %d to %d", count, alloc_limit);
                 write_log(ERROR, msg);
                 fprintf(stderr, "%s\n", msg);
                 pdw->data = p_arr;
                 pdw->lines = count;
+                fclose(p_file);
+                free_buffer_manually();
                 return EXIT_FAILURE;
             }
             p_arr = p_temp;
         }
         
+        err_code = get_product_info(&pro_buf, line_buffer);
+        
         // Copy buffer to data array
         *(p_arr + count) = pro_buf;
         count++;
+        
+        if (err_code != READ_OK)
+        {
+            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
+            {
+                pdw->data = p_arr;
+                pdw->lines = count;
+                fclose(p_file);
+                free_buffer_manually();
+                return EXIT_FAILURE;
+            }
+        }
     }
     fclose(p_file);
     snprintf(msg, MAX_ERR_MSG_LEN, "Closed file \"%s\".", f_name);
@@ -133,6 +153,11 @@ int get_product_info(struct product_info *pi, char *buf)
     char field[STR_MAX];
     char *p_field;
     int error_status = READ_OK; // For non fatal errors
+    
+    // Initialize in case an error might occur
+    pi->p_code = NULL;
+    pi->p_name = NULL;
+    pi->p_os = NULL;
     
     // Getting product code
     strcpy(field, buf);
@@ -244,18 +269,8 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
         {
             qdw->data = p_arr;
             qdw->lines = count;
+            fclose(p_file);
             return EXIT_FAILURE;
-        }
-        
-        err_code = get_quote_info(&qte_buf, line_buffer);
-        if (err_code != READ_OK)
-        {
-            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
-            {
-                qdw->data = p_arr;
-                qdw->lines = count;
-                return EXIT_FAILURE;
-            }
         }
         
         // Allocate memory if necessary
@@ -263,6 +278,20 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
         {
             alloc_limit *= 2;
             p_temp = realloc(p_arr, qdw->data_struct_size * (size_t)(alloc_limit));
+            
+            // Have same data read before simulating realloc fail
+            #ifdef FUNC_READ_DATA_QUOTES_TEST
+            if (count > MIN_ALLOC_LINE_CNT * 2)
+            {
+                printf("Simulating realloc fail. (Quotes reading)\n");
+                if (p_temp != NULL)
+                {
+                    p_arr = p_temp;
+                    p_temp = NULL;
+                }
+            }
+            #endif
+            
             if (p_temp == NULL)
             {
                 snprintf(msg, MAX_ERR_MSG_LEN, "Unable to expand data array from"
@@ -271,14 +300,30 @@ int read_data_quotes(char *f_name, struct quote_data_wrapper *qdw)
                 fprintf(stderr, "%s\n", msg);
                 qdw->data = p_arr;
                 qdw->lines = count;
+                fclose(p_file);
+                free_buffer_manually();
                 return EXIT_FAILURE;
             }
             p_arr = p_temp;
         }
         
+        err_code = get_quote_info(&qte_buf, line_buffer);
+        
         // Copy buffer to data array
         *(p_arr + count) = qte_buf;
         count++;
+        
+        if (err_code != READ_OK)
+        {
+            if (print_read_error(err_code, f_name, count) == READ_ERR_FATAL)
+            {
+                qdw->data = p_arr;
+                qdw->lines = count;
+                fclose(p_file);
+                free_buffer_manually();
+                return EXIT_FAILURE;
+            }
+        }
     }
     fclose(p_file);
     snprintf(msg, MAX_ERR_MSG_LEN, "Closed file \"%s\".", f_name);
@@ -311,6 +356,11 @@ int get_quote_info(struct quote_info *qi, char *buf)
     char field[STR_MAX];
     char *p_field;
     int error_status = READ_OK; // For non fatal errors
+    
+    // Initialize in case an error might occur
+    qi->p_id = NULL;
+    qi->p_code = NULL;
+    qi->p_retailer = NULL;
     
     // Getting quote id
     strcpy(field, buf);
@@ -419,8 +469,8 @@ int print_read_error(enum read_errors err, char *f_name, int line)
         
         case READ_ERR_RAM_NEG:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Product RAM value at line: %d "
-                     "in file \"%s\" is negative. It will be set to 0.", line,
-                     f_name);
+                     "in file \"%s\" is negative. It will be set to 0.",
+                     line, f_name);
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_NOT_FATAL;
@@ -435,8 +485,8 @@ int print_read_error(enum read_errors err, char *f_name, int line)
         
         case READ_ERR_SCRNS_NEG:
             snprintf(err_msg, MAX_ERR_MSG_LEN, "Product screen size at line: %d"
-                     " in file \"%s\" is negative. It will be set to 0.", line,
-                     f_name);
+                     " in file \"%s\" is negative. It will be set to 0.",
+                     line, f_name);
             write_log(ERROR, err_msg);
             fprintf(stderr, "%s\n", err_msg);
             return READ_ERR_NOT_FATAL;

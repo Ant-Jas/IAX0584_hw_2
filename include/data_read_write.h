@@ -12,6 +12,8 @@ Description:  Header file for data_read_write.c. Data struct definitions, macros
 
 #include <main.h>
 
+#define MIN_ALLOC_LINE_CNT 8
+
 // CSV and CSV reading macros
 // Product file fields. Index of first field is 1
 #define CSV_PRO_FIELD_CODE  1
@@ -30,6 +32,10 @@ Description:  Header file for data_read_write.c. Data struct definitions, macros
 // Read error severity
 #define READ_ERR_NOT_FATAL  0
 #define READ_ERR_FATAL      1
+
+// CSV writing errors
+#define CSV_WRITE_OK        1
+#define CSV_WRITE_FOPEN_ERR 0
 
 // Read errors
 enum read_errors {READ_OK, READ_ERR_MSNG_DATA, READ_ERR_STR_MALLOC,
