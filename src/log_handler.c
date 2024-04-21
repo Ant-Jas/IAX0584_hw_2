@@ -11,8 +11,8 @@ Description:  Functions to help with logging.
 #include <string.h>
 #include <log_handler.h>
 
-enum log_levels global_log_level = INFO;
-char global_log_file_name[MAX_LOG_FILE_NAME_LEN] = "log.txt";
+static enum log_levels global_log_level = INFO;
+static char global_log_file_name[MAX_LOG_FILE_NAME_LEN] = "log.txt";
 
 void get_log_time(char *str)
 {
